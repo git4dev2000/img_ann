@@ -102,6 +102,8 @@ def reduce_dim(img_data, n_components=0.95):
     -------
     out : 3-D numpy.ndarray
         Contains transformed data with shape (height, width, n_components).
+        
+
     """
     
     # Unravelling each band's data
@@ -126,7 +128,7 @@ def reduce_dim(img_data, n_components=0.95):
 
 
 # Border corrections
-def create_patch(data_set, pixel_indices, patch_size=5):
+def create_patch(data_set, gt, pixel_indices, patch_size=5):
     """
     Creates input tensors.
     
@@ -134,6 +136,9 @@ def create_patch(data_set, pixel_indices, patch_size=5):
     ---------
     data_set : A 3-D numpy.ndarray
        Contains image data with format: (height, width, bands).
+       
+    gt : A 2-D numpy.ndarray
+        Contains integers, representing different categories.
        
     patch_size : An odd integer
         Represents patch size.
@@ -145,8 +150,11 @@ def create_patch(data_set, pixel_indices, patch_size=5):
     
     Returns
     -------
-    out : Input tensor
+    patch_tensor : Input tensor
         Input tensor with format: (num_samples, patch_size, patch_size, bands).
+        
+    catg_labels : List of class labels.
+    
     """
     rows = pixel_indices[0]
     cols = pixel_indices[1]
@@ -159,6 +167,7 @@ def create_patch(data_set, pixel_indices, patch_size=5):
     max_row, max_col = (data_set.shape[0]-1), (data_set.shape[1]-1)
     sample_size = len(rows) 
     patch_tensor = np.zeros(shape=(sample_size, patch_size, patch_size, data_set.shape[2]))
+    catg_labels = []
     # Selecting a training pixel coordinate
     for idx in np.arange(sample_size):
         patch = np.zeros(shape=(patch_size, patch_size, data_set.shape[2]))
@@ -166,7 +175,8 @@ def create_patch(data_set, pixel_indices, patch_size=5):
         patch_top_row = patch_center[0] - patch_size // 2
         patch_left_col = patch_center[1] - patch_size // 2
         top_lef_idx = (patch_top_row, patch_left_col)
-        
+        # Extracting class label:
+        catg_labels.append(gt[rows[idx], cols[idx]])        
         for i in np.arange(patch_size):
             for j in np.arange(patch_size):
                 patch_idx = (top_lef_idx[0] + i, top_lef_idx[1] + j)
@@ -174,12 +184,32 @@ def create_patch(data_set, pixel_indices, patch_size=5):
                 and (patch_idx[1]>= 0) and (patch_idx[1] <= max_col):
                     patch[i, j,:] = data_set[patch_idx[0], patch_idx[1], :]
         patch_tensor[idx, :, :, :] = patch      
-        
-    return patch_tensor
-        
     
+    return patch_tensor, catg_labels
 
-
+# Converting a list of int labels to one-hot foramt
+def lebel_2_one_hot(label_list):
+    """
+    Creates a dictionary containing class labels and their one-hot vector.
+    
+    Arguments
+    ---------
+    label_list : A list of integers representing class labels.
+    
+    Returns
+    -------
+    one_hot_dict : dictionary
+        A dictionary with class labels of type int as keys and their one-hot 
+        vector representation as values.
+    
+    """
+    catgs = np.unique(label_list)
+    num_catgs = len(catgs)
+    one_hot_dict = dict([(elm[1], np.eye(1, num_catgs, elm[0]).ravel()) \
+                           for elm in enumerate(catgs)])
+    return one_hot_dict
+       
+    
         
         
     

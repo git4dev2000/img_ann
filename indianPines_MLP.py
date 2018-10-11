@@ -16,29 +16,24 @@ from matplotlib import pyplot as plt
 # Loading dataset
 
 data_folder = '/home/mansour/imgANN/Datasets'
-data_file= 'Salinas_corrected'
-gt_file = 'Salinas_gt'
-train_fraction = 0.8
+data_file= 'Indian_pines_corrected'
+gt_file = 'Indian_pines_gt'
+train_fraction = 0.85
 rem_classes = [0]
-patch_size = 19
-kernel_size = 3
-pool_size = 2
-lr = 1e-4
-l2_parm = 1e-3
+patch_size = 1
+lr = 1e-3
+#units_1 = 200
+units_2 = 2**8
 
-# Model's configuration consists of three convolutional layesr and two pooling
-# layesr.
-filters_1 = 2**5
-filters_2 = 2**6
-filters_3 = 2**8
+
 
 
 
 # The corrected Salinas dataset has a coverage of 512*217(height*width) and 204 channels
 # It represents 16 different classes. Each chnnel contains different ranges of values.
  
-data_set = sio.loadmat(os.path.join(data_folder, data_file)).get('salinas_corrected')
-gt = sio.loadmat(os.path.join(data_folder, gt_file)).get('salinas_gt')
+data_set = sio.loadmat(os.path.join(data_folder, data_file)).get('indian_pines_corrected')
+gt = sio.loadmat(os.path.join(data_folder, gt_file)).get('indian_pines_gt')
 
 # Preprocessing for data split for trainingand test
 (train_rows, train_cols), (test_rows, test_cols) = preprocessing.data_split(gt, 
@@ -51,8 +46,8 @@ data_set = preprocessing.reduce_dim(data_set, .999)
 data_set_scaled = np.zeros(data_set.shape)
 for i in np.arange(data_set.shape[2]):
     band = data_set[:,:,i]
-    data_set_scaled[:,:,i] = (band - np.mean(band)) / np.std(band)
-
+    data_set_scaled[:,:,i] = (band - np.mean(band)) / np.std(band) # zero mean and 1 std
+    #data_set_scaled[:,:,i] = band / np.amax(band)  # scaled with max
 data_set = data_set_scaled
     
 # Creating input tensor and class labels
@@ -82,47 +77,27 @@ y_test = np.array([int_to_vector_dict.get(elm) for elm in test_labels])
 
 
 
-# Building a 2-D convolutional network
+# Building a MLP network model
 nn_model = models.Sequential()
-# conv_1
-nn_model.add(layer=layers.Conv2D(filters=filters_1, kernel_size=kernel_size,
-                                 strides=1, activation='relu',
-                                 input_shape=train_input.shape[1:],
-                                 padding='same',
-                                 kernel_regularizer=regularizers.l2(l2_parm)))
-# pool_1
-nn_model.add(layer=layers.MaxPool2D(pool_size=pool_size, strides=pool_size,
-                                    padding='valid'))
-#conv_2
-nn_model.add(layer=layers.Conv2D(filters=filters_2, kernel_size=kernel_size,
-                                 strides=1, activation='relu',
-                                 padding='same',
-                                 kernel_regularizer=regularizers.l2(l2_parm)))
-# pool_2
-nn_model.add(layer=layers.MaxPool2D(pool_size=pool_size, strides=pool_size,
-                                    padding='valid'))
-# conv_3
-nn_model.add(layer=layers.Conv2D(filters=filters_3, kernel_size=kernel_size,
-                                 strides=1, activation='relu',
-                                 padding='same',
-                                 kernel_regularizer=regularizers.l2(l2_parm)))
-# flatten
-nn_model.add(layer=layers.Flatten())
-# dropout
-nn_model.add(layer=layers.Dropout(0.35))
+#
 # dense_1
-nn_model.add(layer=layers.Dense(units=2**9, activation='relu'))
-# dense_2
-nn_model.add(layer=layers.Dense(units=2**8, activation='relu'))
-# dense_3
+nn_model.add(layer=layers.Dense(units=data_set.shape[2], activation='relu',
+                                input_shape=train_input.shape[1:]
+                                ))
+# flatten to chnage input shape from (1,1,num_band) to (num_band,)
+nn_model.add(layer=layers.Flatten())
+#nn_model.add(layer=layers.Dense(units=int(2/3*(num_catg+train_input.shape[3])), activation='relu'))
+nn_model.add(layer=layers.Dense(units=2**10, activation='relu'))
+#nn_model.add(layer=layers.Dropout(0.5))
 nn_model.add(layer=layers.Dense(units=num_catg, activation='softmax'))
+
 
 # Compiling the modele
 nn_model.compile(optimizer=optimizers.RMSprop(lr=lr),
                  loss=losses.categorical_crossentropy,
                  metrics=[metrics.categorical_accuracy])
 
-history = nn_model.fit(x=train_input, y=y_train, batch_size=2**5, epochs=20,
+history = nn_model.fit(x=train_input, y=y_train, batch_size=2**5, epochs=30,
                        validation_split=0.1)
     
 
