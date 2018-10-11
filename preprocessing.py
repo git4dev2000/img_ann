@@ -16,7 +16,8 @@ from sklearn.decomposition import PCA
 
 
 # Preprocessing for data split for training, val, and test
-def data_split(gt, train_fraction=0.7, rem_classes=None):
+def data_split(gt, train_fraction=0.7, rem_classes=None,
+               split_method='same_hist'):
     """
     Outpus list of row and column indices for training and test sets.
     
@@ -30,7 +31,11 @@ def data_split(gt, train_fraction=0.7, rem_classes=None):
         
     rem_classes : None or array_like
         list of class ids (integers) not to be included in analysis, e.g., class
-        ids that do not have any ground truth values. 
+        ids that do not have any ground truth values.
+        
+    split_method : 'same_hist' or a dictionary
+        The dictionaries keys represent class label and values represent number
+        of elemnt to be used for training in each class.
               
     Returns
     -------
@@ -54,15 +59,28 @@ def data_split(gt, train_fraction=0.7, rem_classes=None):
     # A 2-D tuple with first element representing number of samples per catg
     # and the second element a 2-D tuple containing row and column indices in
     # the gt array.
-    catg_with_indices = zip(num_sample_catgs, all_catg_indices)
+    catg_with_indices = zip(num_sample_catgs, all_catg_indices, catgs)
     train_rows, train_cols, test_rows, test_cols = [], [], [], []
+   
+    #####if else goes here....
     for elm in catg_with_indices:
         all_indices_per_catg = np.arange(elm[0], dtype='int32')
-        rand_train_indices = np.random.choice(all_indices_per_catg,
-                                              size=int(math.floor(elm[0]*train_fraction)),
-                                              replace=False)
-        rand_test_indices = np.setdiff1d(ar1=all_indices_per_catg,
-                                         ar2=rand_train_indices, assume_unique=True)
+        if split_method == 'same_hist':
+            rand_train_indices = np.random.choice(all_indices_per_catg,
+                                                  size=int(math.floor(elm[0]*train_fraction)),
+                                                  replace=False)
+            rand_test_indices = np.setdiff1d(ar1=all_indices_per_catg,
+                                             ar2=rand_train_indices, assume_unique=True)
+        elif isinstance(split_method, dict):
+            rand_train_indices = np.random.choice(all_indices_per_catg,
+                                                  size=split_method.get(elm),
+                                                  replace=False)
+            rand_test_indices = np.setdiff1d(ar1=all_indices_per_catg,
+                                             ar2=rand_train_indices, assume_unique=True)
+        else:
+            raise ValueError('Please select a valid option')
+            
+        
         train_rows.append(elm[1][0][rand_train_indices])
         train_cols.append(elm[1][1][rand_train_indices])
         test_rows.append(elm[1][0][rand_test_indices])
@@ -102,6 +120,8 @@ def reduce_dim(img_data, n_components=0.95):
     -------
     out : 3-D numpy.ndarray
         Contains transformed data with shape (height, width, n_components).
+        
+
     """
     
     # Unravelling each band's data
@@ -126,7 +146,7 @@ def reduce_dim(img_data, n_components=0.95):
 
 
 # Border corrections
-def create_patch(data_set, pixel_indices, patch_size=5):
+def create_patch(data_set, gt, pixel_indices, patch_size=5):
     """
     Creates input tensors.
     
@@ -134,6 +154,9 @@ def create_patch(data_set, pixel_indices, patch_size=5):
     ---------
     data_set : A 3-D numpy.ndarray
        Contains image data with format: (height, width, bands).
+       
+    gt : A 2-D numpy.ndarray
+        Contains integers, representing different categories.
        
     patch_size : An odd integer
         Represents patch size.
@@ -145,8 +168,11 @@ def create_patch(data_set, pixel_indices, patch_size=5):
     
     Returns
     -------
-    out : Input tensor
+    patch_tensor : Input tensor
         Input tensor with format: (num_samples, patch_size, patch_size, bands).
+        
+    catg_labels : List of class labels.
+    
     """
     rows = pixel_indices[0]
     cols = pixel_indices[1]
@@ -159,6 +185,7 @@ def create_patch(data_set, pixel_indices, patch_size=5):
     max_row, max_col = (data_set.shape[0]-1), (data_set.shape[1]-1)
     sample_size = len(rows) 
     patch_tensor = np.zeros(shape=(sample_size, patch_size, patch_size, data_set.shape[2]))
+    catg_labels = []
     # Selecting a training pixel coordinate
     for idx in np.arange(sample_size):
         patch = np.zeros(shape=(patch_size, patch_size, data_set.shape[2]))
@@ -166,7 +193,8 @@ def create_patch(data_set, pixel_indices, patch_size=5):
         patch_top_row = patch_center[0] - patch_size // 2
         patch_left_col = patch_center[1] - patch_size // 2
         top_lef_idx = (patch_top_row, patch_left_col)
-        
+        # Extracting class label:
+        catg_labels.append(gt[rows[idx], cols[idx]])        
         for i in np.arange(patch_size):
             for j in np.arange(patch_size):
                 patch_idx = (top_lef_idx[0] + i, top_lef_idx[1] + j)
@@ -174,12 +202,32 @@ def create_patch(data_set, pixel_indices, patch_size=5):
                 and (patch_idx[1]>= 0) and (patch_idx[1] <= max_col):
                     patch[i, j,:] = data_set[patch_idx[0], patch_idx[1], :]
         patch_tensor[idx, :, :, :] = patch      
-        
-    return patch_tensor
-        
     
+    return patch_tensor, catg_labels
 
-
+# Converting a list of int labels to one-hot foramt
+def lebel_2_one_hot(label_list):
+    """
+    Creates a dictionary containing class labels and their one-hot vector.
+    
+    Arguments
+    ---------
+    label_list : A list of integers representing class labels.
+    
+    Returns
+    -------
+    one_hot_dict : dictionary
+        A dictionary with class labels of type int as keys and their one-hot 
+        vector representation as values.
+    
+    """
+    catgs = np.unique(label_list)
+    num_catgs = len(catgs)
+    one_hot_dict = dict([(elm[1], np.eye(1, num_catgs, elm[0]).ravel()) \
+                           for elm in enumerate(catgs)])
+    return one_hot_dict
+       
+    
         
         
     
