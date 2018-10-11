@@ -16,7 +16,8 @@ from sklearn.decomposition import PCA
 
 
 # Preprocessing for data split for training, val, and test
-def data_split(gt, train_fraction=0.7, rem_classes=None):
+def data_split(gt, train_fraction=0.7, rem_classes=None,
+               split_method='same_hist'):
     """
     Outpus list of row and column indices for training and test sets.
     
@@ -30,7 +31,11 @@ def data_split(gt, train_fraction=0.7, rem_classes=None):
         
     rem_classes : None or array_like
         list of class ids (integers) not to be included in analysis, e.g., class
-        ids that do not have any ground truth values. 
+        ids that do not have any ground truth values.
+        
+    split_method : 'same_hist' or a dictionary
+        The dictionaries keys represent class label and values represent number
+        of elemnt to be used for training in each class.
               
     Returns
     -------
@@ -54,15 +59,28 @@ def data_split(gt, train_fraction=0.7, rem_classes=None):
     # A 2-D tuple with first element representing number of samples per catg
     # and the second element a 2-D tuple containing row and column indices in
     # the gt array.
-    catg_with_indices = zip(num_sample_catgs, all_catg_indices)
+    catg_with_indices = zip(num_sample_catgs, all_catg_indices, catgs)
     train_rows, train_cols, test_rows, test_cols = [], [], [], []
+   
+    #####if else goes here....
     for elm in catg_with_indices:
         all_indices_per_catg = np.arange(elm[0], dtype='int32')
-        rand_train_indices = np.random.choice(all_indices_per_catg,
-                                              size=int(math.floor(elm[0]*train_fraction)),
-                                              replace=False)
-        rand_test_indices = np.setdiff1d(ar1=all_indices_per_catg,
-                                         ar2=rand_train_indices, assume_unique=True)
+        if split_method == 'same_hist':
+            rand_train_indices = np.random.choice(all_indices_per_catg,
+                                                  size=int(math.floor(elm[0]*train_fraction)),
+                                                  replace=False)
+            rand_test_indices = np.setdiff1d(ar1=all_indices_per_catg,
+                                             ar2=rand_train_indices, assume_unique=True)
+        elif isinstance(split_method, dict):
+            rand_train_indices = np.random.choice(all_indices_per_catg,
+                                                  size=split_method.get(elm),
+                                                  replace=False)
+            rand_test_indices = np.setdiff1d(ar1=all_indices_per_catg,
+                                             ar2=rand_train_indices, assume_unique=True)
+        else:
+            raise ValueError('Please select a valid option')
+            
+        
         train_rows.append(elm[1][0][rand_train_indices])
         train_cols.append(elm[1][1][rand_train_indices])
         test_rows.append(elm[1][0][rand_test_indices])
