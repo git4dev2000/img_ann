@@ -73,7 +73,7 @@ def data_split(gt, train_fraction=0.7, rem_classes=None,
                                              ar2=rand_train_indices, assume_unique=True)
         elif isinstance(split_method, dict):
             rand_train_indices = np.random.choice(all_indices_per_catg,
-                                                  size=split_method.get(elm),
+                                                  size=split_method.get(elm[2]),
                                                   replace=False)
             rand_test_indices = np.setdiff1d(ar1=all_indices_per_catg,
                                              ar2=rand_train_indices, assume_unique=True)
@@ -226,7 +226,25 @@ def lebel_2_one_hot(label_list):
     one_hot_dict = dict([(elm[1], np.eye(1, num_catgs, elm[0]).ravel()) \
                            for elm in enumerate(catgs)])
     return one_hot_dict
-       
+
+def one_hot_2_label(int_to_vector_dict):
+    """
+    Converts integer to one_hot dictionary to a one_hot to integer dictionary. 
+    dictionary
+    
+    Arguments
+    ---------
+    one_hot_ndarray : A numpy.ndarray
+        Contains one-hot format of class labels.
+    
+    Returns
+    -------
+    tuple_to_int_dict : dictionary
+        keys are tuples with one-hot format and values are integer class labels.
+    """
+    tuple_to_int_dict = dict([(tuple(val),key) for key, val in int_to_vector_dict.items()])
+    return tuple_to_int_dict
+    
     
         
         

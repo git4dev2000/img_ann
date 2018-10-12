@@ -20,13 +20,13 @@ data_file= 'Indian_pines_corrected'
 gt_file = 'Indian_pines_gt'
 train_fraction = 0.85
 rem_classes = [0]
+class_weights = dict([(1,33),(2,200),(3,200),(4,181),(5,200),(6,200),(7,20),
+                      (8,200),(9,14),(10,200),(11,200),(12,200),(13,143),(14,200),
+                      (15,200),(16,75)])
 patch_size = 1
-lr = 1e-3
+lr = 1e-4
 #units_1 = 200
 units_2 = 2**8
-
-
-
 
 
 # The corrected Salinas dataset has a coverage of 512*217(height*width) and 204 channels
@@ -37,10 +37,10 @@ gt = sio.loadmat(os.path.join(data_folder, gt_file)).get('indian_pines_gt')
 
 # Preprocessing for data split for trainingand test
 (train_rows, train_cols), (test_rows, test_cols) = preprocessing.data_split(gt, 
-train_fraction=train_fraction, rem_classes=rem_classes)
+train_fraction=train_fraction, rem_classes=rem_classes, split_method=class_weights) # may set to 'same_hist'
 
 # Reducing dataset dimension using PCA
-data_set = preprocessing.reduce_dim(data_set, .999)
+#data_set = preprocessing.reduce_dim(data_set, .999)
 
 # Scaling the input data using mean and std at each band
 data_set_scaled = np.zeros(data_set.shape)
@@ -86,9 +86,10 @@ nn_model.add(layer=layers.Dense(units=data_set.shape[2], activation='relu',
                                 ))
 # flatten to chnage input shape from (1,1,num_band) to (num_band,)
 nn_model.add(layer=layers.Flatten())
-#nn_model.add(layer=layers.Dense(units=int(2/3*(num_catg+train_input.shape[3])), activation='relu'))
+nn_model.add(layer=layers.Dense(units=int(2/3*(num_catg+train_input.shape[3])), activation='relu'))
+#nn_model.add(layer=layers.Dense(units=2**10, activation='relu'))
 nn_model.add(layer=layers.Dense(units=2**10, activation='relu'))
-#nn_model.add(layer=layers.Dropout(0.5))
+nn_model.add(layer=layers.Dropout(0.35))
 nn_model.add(layer=layers.Dense(units=num_catg, activation='softmax'))
 
 
@@ -97,7 +98,7 @@ nn_model.compile(optimizer=optimizers.RMSprop(lr=lr),
                  loss=losses.categorical_crossentropy,
                  metrics=[metrics.categorical_accuracy])
 
-history = nn_model.fit(x=train_input, y=y_train, batch_size=2**5, epochs=30,
+history = nn_model.fit(x=train_input, y=y_train, batch_size=2**3, epochs=50,
                        validation_split=0.1)
     
 
@@ -111,17 +112,38 @@ plt.plot(epoches, history.history.get('categorical_accuracy'), 'b',label='Accura
 plt.plot(epoches, history.history.get('val_categorical_accuracy'),'bo', label='Validation_Accu')
 plt.legend()
 
+# Calculating metrics on test data
+#
+# Creating one_hot_2_int dictionary...
+vectot_2_label = preprocessing.one_hot_2_label(int_to_vector_dict)
+test_catgs, test_catg_counts = np.unique([vectot_2_label.get(tuple(elm)) for elm
+                                          in y_test], return_counts=True)
+
+# Generating a list of tuples for storing pixel coordinate, i.e
+# with format (catg_lable, row, col, input_tensor, target_tensor)
+from_to_list = []
+res_container = [(elm,[],[],[],[],[]) for elm in test_catgs]
+
+i=0
+for elm in test_catg_counts:
+    from_idx = i 
+    to_idx = i + elm
+    i+=elm
+    from_to_list.append((from_idx, to_idx))
 
 
+for elm in zip(res_container, from_to_list): 
+    elm[0][1].append(test_rows[elm[1][0]:elm[1][1]]) # catg row
+    elm[0][2].append(test_cols[elm[1][0]:elm[1][1]]) # catg col
+    #elm[0][3].append(test_input[elm[1][0]:elm[1][1], :, :, :]) # input_tensor
+    #elm[0][4].append(y_test[elm[1][0]:elm[1][1],:]) # predicted tensor
+    x=test_input[elm[1][0]:elm[1][1], :, :, :]
+    y=y_test[elm[1][0]:elm[1][1],:]
+    test_loss, test_accuracy = nn_model.evaluate(x=x, y=y) 
+    elm[0][5].append(test_accuracy) #metric
 
-
-
-
-
-
-
-
-
+for elm in res_container:
+    print((elm[0],elm[-1]))
 
 
 
