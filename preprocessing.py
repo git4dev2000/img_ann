@@ -245,6 +245,23 @@ def one_hot_2_label(int_to_vector_dict):
     tuple_to_int_dict = dict([(tuple(val),key) for key, val in int_to_vector_dict.items()])
     return tuple_to_int_dict
     
+def val_split(rows, cols, gt, val_fraction=0.1, rem_classes=None,
+              split_method='same_hist'):
+    if rem_classes is None:
+        rem_classes=[-1]
+    
+    gt_no_test = np.zeros(shape=gt.shape, dtype='int').reshape(gt.shape)-1 
+    for elm in zip(rows,cols):
+        gt_no_test[rows, cols] = gt[rows, cols]
+        
+    (train_rows, train_cols), (val_rows, val_cols) = data_split(
+    gt_no_test,
+    1-val_fraction,
+    rem_classes,
+    split_method)
+    
+    return (train_rows, train_cols), (val_rows, val_cols) 
+    
     
         
         

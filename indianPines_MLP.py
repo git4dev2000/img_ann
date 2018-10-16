@@ -88,8 +88,8 @@ nn_model.add(layer=layers.Dense(units=data_set.shape[2], activation='relu',
 nn_model.add(layer=layers.Flatten())
 nn_model.add(layer=layers.Dense(units=int(2/3*(num_catg+train_input.shape[3])), activation='relu'))
 #nn_model.add(layer=layers.Dense(units=2**10, activation='relu'))
-nn_model.add(layer=layers.Dense(units=2**10, activation='relu'))
-nn_model.add(layer=layers.Dropout(0.35))
+#nn_model.add(layer=layers.Dense(units=2**10, activation='relu'))
+#nn_model.add(layer=layers.Dropout(0.35))
 nn_model.add(layer=layers.Dense(units=num_catg, activation='softmax'))
 
 
@@ -99,8 +99,9 @@ nn_model.compile(optimizer=optimizers.RMSprop(lr=lr),
                  metrics=[metrics.categorical_accuracy])
 
 history = nn_model.fit(x=train_input, y=y_train, batch_size=2**3, epochs=50,
-                       validation_split=0.1)
+                       validation_split=0.05)
     
+
 
 # Plotting history
 epoches = np.arange(1,len(history.history.get('loss'))+1)
@@ -120,8 +121,9 @@ test_catgs, test_catg_counts = np.unique([vectot_2_label.get(tuple(elm)) for elm
                                           in y_test], return_counts=True)
 
 # Generating a list of tuples for storing pixel coordinate, i.e
-# with format (catg_lable, row, col, input_tensor, target_tensor)
+# with format (catg_lable, row, col, input_tensor, target_tensor, metric_container)
 from_to_list = []
+num_metrics = len(nn_model.metrics_names)
 res_container = [(elm,[],[],[],[],[]) for elm in test_catgs]
 
 i=0
@@ -135,12 +137,12 @@ for elm in test_catg_counts:
 for elm in zip(res_container, from_to_list): 
     elm[0][1].append(test_rows[elm[1][0]:elm[1][1]]) # catg row
     elm[0][2].append(test_cols[elm[1][0]:elm[1][1]]) # catg col
-    #elm[0][3].append(test_input[elm[1][0]:elm[1][1], :, :, :]) # input_tensor
-    #elm[0][4].append(y_test[elm[1][0]:elm[1][1],:]) # predicted tensor
     x=test_input[elm[1][0]:elm[1][1], :, :, :]
     y=y_test[elm[1][0]:elm[1][1],:]
-    test_loss, test_accuracy = nn_model.evaluate(x=x, y=y) 
-    elm[0][5].append(test_accuracy) #metric
+    #elm[0][3].append(test_input[elm[1][0]:elm[1][1], :, :, :]) # input_tensor
+    #elm[0][4].append(y_test[elm[1][0]:elm[1][1],:]) # predicted tensor
+    test_metrics= nn_model.evaluate(x=x, y=y) 
+    elm[0][5].append(test_metrics) #metric
 
 for elm in res_container:
     print((elm[0],elm[-1]))
