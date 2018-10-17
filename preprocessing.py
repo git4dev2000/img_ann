@@ -261,11 +261,51 @@ def val_split(rows, cols, gt, val_fraction=0.1, rem_classes=None,
     split_method)
     
     return (train_rows, train_cols), (val_rows, val_cols) 
+
+def rescale_data(data_set, method='standard'):
+    """
+    Rescales image dataset using different methods.
     
-    
+    Arguments
+    ---------
+    data_set : 3-D numpy.ndarray
+        Containts image data with format: (height, width, channels).
         
+    methodod : str 
+        Represents rescaling method. Can take one of: 'standard', 'zero_mean',
+        or 'min_max_norm', 'mean_norm'.
         
+    Returns: rescaled_data
+    """
+    if (not isinstance(data_set, np.ndarray)) or (len(data_set.shape) !=3):
+        raise ValueError('data_set must be a 3-D numpy array!')
     
+    rescale_data = np.zeros(data_set.shape)
+    if method == 'standard':
+        for i in np.arange(data_set.shape[-1]):
+            channel = data_set[:,:,i]
+            rescale_data[:,:,i] = (channel - np.mean(channel)) / np.std(channel)
+    elif method == 'zero_mean':
+        for i in np.arange(data_set.shape[-1]):
+            channel = data_set[:,:,i]
+            rescale_data[:,:,i] = channel - np.mean(channel)
+    elif method == 'min_max_norm':
+        for i in np.arange(data_set.shape[-1]):
+            channel = data_set[:,:,i]
+            rescale_data[:,:,i] = (channel - np.amin(channel)) / (np.amax(channel) \
+                        - np.amin(channel))
+    elif method == 'mean_norm':
+        for i in np.arange(data_set.shape[-1]):
+            channel = data_set[:,:,i]
+            rescale_data[:,:,i] = (channel - np.mean(channel)) / (np.amax(channel) \
+                        - np.amin(channel))
+    else:
+        raise ValueError('{} is not a valid method.'.format(method))
+    
+    return rescale_data
+
+
+
     
 
     

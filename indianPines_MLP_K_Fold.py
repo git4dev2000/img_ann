@@ -44,11 +44,12 @@ train_fraction=train_fraction, rem_classes=rem_classes, split_method='same_hist'
 #data_set = preprocessing.reduce_dim(data_set, .999)
 
 # Scaling the input data using mean and std at each band
-data_set_scaled = np.zeros(data_set.shape)
-for i in np.arange(data_set.shape[2]):
-    band = data_set[:,:,i]
-    data_set_scaled[:,:,i] = (band - np.mean(band)) / np.std(band) # zero mean and 1 std
-    #data_set_scaled[:,:,i] = band / np.amax(band)  # scaled with max
+data_set_scaled = preprocessing.rescale_data(data_set)
+
+#for i in np.arange(data_set.shape[2]):
+#    band = data_set[:,:,i]
+#    data_set_scaled[:,:,i] = (band - np.mean(band)) / np.std(band) # zero mean and 1 std
+#    #data_set_scaled[:,:,i] = band / np.amax(band)  # scaled with max
 data_set = data_set_scaled
     
 
@@ -195,5 +196,32 @@ for elm in enumerate(zip(rr.ravel(), cc.ravel())):
     gt_pred_all_map[elm[1]] = all_y_pred[elm[0]]
 
 plt.imshow(gt_pred_all_map)
+
+
+
+
+def my_test(a):
+    if not isinstance(a,np.ndarray):
+        raise TypeError('This is not a valid input')
+    
+    print('It is OK')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
