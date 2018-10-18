@@ -146,7 +146,7 @@ def reduce_dim(img_data, n_components=0.95):
 
 
 # Border corrections
-def create_patch(data_set, gt, pixel_indices, patch_size=5):
+def create_patch(data_set, gt, pixel_indices, patch_size=5, label_vect_dict=None):
     """
     Creates input tensors.
     
@@ -157,21 +157,25 @@ def create_patch(data_set, gt, pixel_indices, patch_size=5):
        
     gt : A 2-D numpy.ndarray
         Contains integers, representing different categories.
-       
-    patch_size : An odd integer
-        Represents patch size.
         
     pixel_indices : A seuence of two sequences.
         Contains lists of integers, representing training pixel rows and columns.
         e.g., (train_rows, train_cols), where train_rows and train_cols are list
         of integers.
     
+    patch_size : An odd integer
+        Represents patch size.
+    
+    label_vect_dict : None or an int to vector dictionary
+        Associates int labels to a one-hot vector.
+    
     Returns
     -------
-    patch_tensor : Input tensor
+    input_tensor : numpy.ndarray
         Input tensor with format: (num_samples, patch_size, patch_size, bands).
         
-    catg_labels : List of class labels.
+    target_tensor : numpy.ndarray
+        Target tensor with one_hot format.
     
     """
     rows = pixel_indices[0]
@@ -184,7 +188,7 @@ def create_patch(data_set, gt, pixel_indices, patch_size=5):
                          
     max_row, max_col = (data_set.shape[0]-1), (data_set.shape[1]-1)
     sample_size = len(rows) 
-    patch_tensor = np.zeros(shape=(sample_size, patch_size, patch_size, data_set.shape[2]))
+    input_tensor = np.zeros(shape=(sample_size, patch_size, patch_size, data_set.shape[2]))
     catg_labels = []
     # Selecting a training pixel coordinate
     for idx in np.arange(sample_size):
@@ -201,12 +205,16 @@ def create_patch(data_set, gt, pixel_indices, patch_size=5):
                 if (patch_idx[0] >= 0) and (patch_idx[0] <= max_row) \
                 and (patch_idx[1]>= 0) and (patch_idx[1] <= max_col):
                     patch[i, j,:] = data_set[patch_idx[0], patch_idx[1], :]
-        patch_tensor[idx, :, :, :] = patch      
-    
-    return patch_tensor, catg_labels
+        input_tensor[idx, :, :, :] = patch
+        
+    if label_vect_dict is None:
+        label_vect_dict = label_2_one_hot(np.unique(gt))
+   
+    target_tensor = np.array([label_vect_dict.get(label) for label in catg_labels])
+    return input_tensor, target_tensor
 
 # Converting a list of int labels to one-hot foramt
-def lebel_2_one_hot(label_list):
+def label_2_one_hot(label_list):
     """
     Creates a dictionary containing class labels and their one-hot vector.
     
@@ -304,10 +312,61 @@ def rescale_data(data_set, method='standard'):
     
     return rescale_data
 
-
-
+def calc_metrics(nn_model, test_inputs, y_test, int_to_vector_dict):
+    """
+    Calculates model performance metrics on test data.
     
-
+    Arguments
+    ---------
+    nn_model : Trained neural network model with metrics information.
+    
+    test_inputs : numpy.ndarray
+        Input tensor containing test inputs.
+        
+    y_test : numpy.ndarray
+        Contains target test data with one_hot format.
+        
+    int_to_vector_dict : a int to vector dictionary
+        Associates class int category labels to its corresponding one_hot format.
+    
+    Returns
+    -------
+    model_metrics : dictionary
+        A dictionary with int keys representing category labels and list of
+        model error and performance metrics as values. 
+    """
+    vectot_2_label = one_hot_2_label(int_to_vector_dict)
+    test_catgs, test_catg_counts = np.unique([vectot_2_label.get(tuple(elm)) for elm
+                                              in y_test], return_counts=True)
+    
+    # Generating a list of tuples for storing pixel coordinate, i.e
+    # with format (catg_lable, row, col, input_tensor, target_tensor, metric_container)
+    from_to_list = []
+    #test_rows = pixel_indices[0]
+    #test_cols = pixel_indices[1]
+    #num_metrics = len(nn_model.metrics_names)
+    res_container = [(elm,[],[],[],[],[]) for elm in test_catgs]
+    
+    i=0
+    for elm in test_catg_counts:
+        from_idx = i 
+        to_idx = i + elm
+        i+=elm
+        from_to_list.append((from_idx, to_idx))
+    
+    
+    for elm in zip(res_container, from_to_list): 
+        #elm[0][1].append(test_rows[elm[1][0]:elm[1][1]]) # catg row
+        #elm[0][2].append(test_cols[elm[1][0]:elm[1][1]]) # catg col
+        x=test_inputs[elm[1][0]:elm[1][1], :, :, :]
+        y=y_test[elm[1][0]:elm[1][1],:]
+        #elm[0][3].append(test_input[elm[1][0]:elm[1][1], :, :, :]) # input_tensor
+        #elm[0][4].append(y_test[elm[1][0]:elm[1][1],:]) # predicted tensor
+        test_metrics= nn_model.evaluate(x=x, y=y) 
+        elm[0][-1].append(test_metrics) #metric
+    
+    model_metrics = dict([(elm[0], elm[-1]) for elm in res_container])
+    return model_metrics
     
    
     
