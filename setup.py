@@ -11,7 +11,7 @@ setuptools.setup(
     description="Deep learning for hyperspectral image processing",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/pypa/sampleproject",
+    url="https://github.com/git4dev2000/img_ann.git",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
