@@ -11,6 +11,7 @@ from keras import models, layers, optimizers, metrics, losses, regularizers
 import os
 import math
 import preprocessing
+import postprocessing
 from matplotlib import pyplot as plt
 
 
@@ -113,7 +114,7 @@ plt.plot(epoches, history.history.get('val_categorical_accuracy'),'bo', label='V
 plt.legend()
 
 # Calculating performance metrics for test data
-model_metrics = preprocessing.calc_metrics(nn_model, test_input,
+model_metrics = postprocessing.calc_metrics(nn_model, test_input,
                                            y_test, int_to_vector_dict)
 
 #nn_model.save('indian_pines_MLP2_2.h5')
@@ -125,11 +126,8 @@ concat_input = np.concatenate((train_input_sub, val_input, test_input))
 concat_y = np.concatenate((y_train_sub, y_val, y_test))
 pixel_indices = (concat_rows, concat_cols)
 
-partial_map = preprocessing.plot_partial_map(nn_model, gt, pixel_indices, concat_input,
+partial_map = postprocessing.plot_partial_map(nn_model, gt, pixel_indices, concat_input,
                             concat_y, int_to_vector_dict)
 
-full_map = preprocessing.plot_full_map(nn_model, data_set, gt, int_to_vector_dict, patch_size)
-
-
-
+full_map = postprocessing.plot_full_map(nn_model, data_set, gt, int_to_vector_dict, patch_size)
 
